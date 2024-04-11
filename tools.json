@@ -1,0 +1,11 @@
+{
+    "FilterSeq.py":"immcantation/suite:4.3.0",
+    "MaskPrimers.py":"immcantation/suite:4.3.0",
+    "AlignSets.py":"immcantation/suite:4.3.0",
+    "BuildConsensus.py":"immcantation/suite:4.3.0",
+    "AssemblePairs.py":"immcantation/suite:4.3.0",
+    "CollapseSeq.py":"immcantation/suite:4.3.0",
+    "PairSeq.py" :"immcantation/suite:4.3.0",
+    "ParseHeaders.py" :"immcantation/suite:4.3.0",
+    "SplitSeq.py" :"immcantation/suite:4.3.0"
+}
