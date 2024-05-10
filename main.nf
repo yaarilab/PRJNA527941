@@ -30,31 +30,45 @@ output:
 
 script:
 
-readArray = reads.toString().split(' ')	
-R1 = readArray[0]
-R2 = readArray[1]
-
-"""
-case "$R1" in
-*.gz | *.tgz ) 
-        gunzip -c $R1 > R1.fastq
-        ;;
-*)
-        cp $R1 ./R1.fastq
-        echo "$R1 not gzipped"
-        ;;
-esac
-
-case "$R2" in
-*.gz | *.tgz ) 
-        gunzip -c $R2 > R2.fastq
-        ;;
-*)
-        cp $R2 ./R2.fastq
-        echo "$R2 not gzipped"
-        ;;
-esac
-"""
+if(mate=="pair"){
+	readArray = reads.toString().split(' ')	
+	R1 = readArray[0]
+	R2 = readArray[1]
+	
+	"""
+	case "$R1" in
+	*.gz | *.tgz ) 
+	        gunzip -c $R1 > R1.fastq
+	        ;;
+	*)
+	        cp $R1 ./R1.fastq
+	        echo "$R1 not gzipped"
+	        ;;
+	esac
+	
+	case "$R2" in
+	*.gz | *.tgz ) 
+	        gunzip -c $R2 > R2.fastq
+	        ;;
+	*)
+	        cp $R2 ./R2.fastq
+	        echo "$R2 not gzipped"
+	        ;;
+	esac
+	"""
+}else{
+	"""
+	case "$reads" in
+	*.gz | *.tgz ) 
+	        gunzip -c $reads > R1.fastq
+	        ;;
+	*)
+	        cp $reads ./R1.fastq
+	        echo "$reads not gzipped"
+	        ;;
+	esac
+	"""
+}
 }
 
 
