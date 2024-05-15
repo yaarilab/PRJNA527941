@@ -79,7 +79,7 @@ input:
  val mate from g_6_mate_g0_0
 
 output:
- set val(name), file("*_${method}-pass.fast*")  into g0_0_reads00
+ set val(name), file("*_${method}-pass.fast*")  into g0_0_reads0_g21_11
  set val(name), file("FS_*")  into g0_0_logFile1_g0_5
  set val(name), file("*_${method}-fail.fast*") optional true  into g0_0_reads22
  set val(name),file("out*") optional true  into g0_0_logFile33
@@ -298,525 +298,9 @@ rmarkdown::render("${rmk}", clean=TRUE, output_format="html_document", output_di
 }
 
 
-process Mask_Primer_MaskPrimers {
-
-input:
- val mate from g_6_mate_g21_11
-
-output:
- set val(name), file("*_primers-pass.fast*")  into g21_11_reads0_g_18
- set val(name), file("*_primers-fail.fast*") optional true  into g21_11_reads_failed11
- set val(name), file("MP_*")  into g21_11_logFile2_g21_9
- set val(name),file("out*")  into g21_11_logFile33
-
-script:
-method = params.Mask_Primer_MaskPrimers.method
-barcode_field = params.Mask_Primer_MaskPrimers.barcode_field
-primer_field = params.Mask_Primer_MaskPrimers.primer_field
-barcode = params.Mask_Primer_MaskPrimers.barcode
-revpr = params.Mask_Primer_MaskPrimers.revpr
-mode = params.Mask_Primer_MaskPrimers.mode
-failed = params.Mask_Primer_MaskPrimers.failed
-fasta = params.Mask_Primer_MaskPrimers.fasta
-nproc = params.Mask_Primer_MaskPrimers.nproc
-maxerror = params.Mask_Primer_MaskPrimers.maxerror
-umi_length = params.Mask_Primer_MaskPrimers.umi_length
-start = params.Mask_Primer_MaskPrimers.start
-extract_length = params.Mask_Primer_MaskPrimers.extract_length
-maxlen = params.Mask_Primer_MaskPrimers.maxlen
-skiprc = params.Mask_Primer_MaskPrimers.skiprc
-R1_primers = params.Mask_Primer_MaskPrimers.R1_primers
-R2_primers = params.Mask_Primer_MaskPrimers.R2_primers
-//* @style @condition:{method="score",umi_length,start,maxerror}{method="extract",umi_length,start},{method="align",maxerror,maxlen,skiprc}, {method="extract",start,extract_length} @array:{method,barcode_field,primer_field,barcode,revpr,mode,maxerror,umi_length,start,extract_length,maxlen,skiprc} @multicolumn:{method,barcode_field,primer_field,barcode,revpr,mode,failed,nproc,maxerror,umi_length,start,extract_length,maxlen,skiprc}
-
-method = (method.collect().size==2) ? method : [method[0],method[0]]
-barcode_field = (barcode_field.collect().size==2) ? barcode_field : [barcode_field[0],barcode_field[0]]
-primer_field = (primer_field.collect().size==2) ? primer_field : [primer_field[0],primer_field[0]]
-barcode = (barcode.collect().size==2) ? barcode : [barcode[0],barcode[0]]
-revpr = (revpr.collect().size==2) ? revpr : [revpr[0],revpr[0]]
-mode = (mode.collect().size==2) ? mode : [mode[0],mode[0]]
-maxerror = (maxerror.collect().size==2) ? maxerror : [maxerror[0],maxerror[0]]
-umi_length = (umi_length.collect().size==2) ? umi_length : [umi_length[0],umi_length[0]]
-start = (start.collect().size==2) ? start : [start[0],start[0]]
-extract_length = (extract_length.collect().size==2) ? extract_length : [extract_length[0],extract_length[0]]
-maxlen = (maxlen.collect().size==2) ? maxlen : [maxlen[0],maxlen[0]]
-skiprc = (skiprc.collect().size==2) ? skiprc : [skiprc[0],skiprc[0]]
-failed = (failed=="true") ? "--failed" : ""
-fasta = (fasta=="true") ? "--fasta" : ""
-def args_values = [];
-[method,barcode_field,primer_field,barcode,revpr,mode,maxerror,umi_length,start,extract_length,maxlen,skiprc].transpose().each { m,bf,pf,bc,rp,md,mr,ul,s,el,ml,sk -> {
-    
-    if(m=="align"){
-        s = ""
-    }else{
-        if(bc=="false"){
-            s = "--start ${s}"
-        }else{
-            s = s + ul
-            s = "--start ${s}"
-        }
-    }
-    
-    el = (m=="extract") ? "--len ${el}" : ""
-    mr = (m=="extract") ? "" : "--maxerror ${mr}" 
-    ml = (m=="align") ? "--maxlen ${ml}" : "" 
-    sk = (m=="align" && sk=="true") ? "--skiprc" : "" 
-    
-    PRIMER_FIELD = "${pf}"
-    
-    // all
-    bf = (bf=="") ? "" : "--bf ${bf}"
-    pf = (pf=="") ? "" : "--pf ${pf}"
-    bc = (bc=="false") ? "" : "--barcode"
-    rp = (rp=="false") ? "" : "--revpr"
-    args_values.add("${m} --mode ${md} ${bc} ${rp} ${mr} ${s} ${el} ${ml} ${sk} ${pf} ${bf}")
-    
-    
-}}
-
-readArray = reads.toString().split(' ')
-if(mate=="pair"){
-	args_1 = args_values[0]
-	args_2 = args_values[1]
-	
-  
-
-
-	R1 = readArray[0]
-	R2 = readArray[1]
-	
-	R1_primers = (method[0]=="extract") ? "" : "-p ${R1_primers}"
-	R2_primers = (method[1]=="extract") ? "" : "-p ${R2_primers}"
-	
-	
-	"""
-	
-	MaskPrimers.py ${args_1} -s ${R1} ${R1_primers} --log MP_R1_${name}.log  --nproc ${nproc} ${failed} ${fasta} 2>&1 | tee -a out_${R1}_MP.log & \
-	MaskPrimers.py ${args_2} -s ${R2} ${R2_primers} --log MP_R2_${name}.log  --nproc ${nproc} ${failed} ${fasta} 2>&1 | tee -a out_${R1}_MP.log & \
-	wait
-	"""
-}else{
-	args_1 = args_values[0]
-	
-	R1_primers = (method[0]=="extract") ? "" : "-p ${R1_primers}"
-	
-	R1 = readArray[0]
-
-	"""
-	echo -e "Assuming inputs for R1\n"
-	
-	MaskPrimers.py ${args_1} -s ${reads} ${R1_primers} --log MP_${name}.log  --nproc ${nproc} ${failed} ${fasta} 2>&1 | tee -a out_${R1}_MP.log
-	"""
-}
-
-}
-
-
-process pair_seq {
-
-input:
- set val(name),file(reads) from g21_11_reads0_g_18
- val mate from g_6_mate_g_18
-
-output:
- set val(name),file("*_pair-pass.fastq")  into g_18_reads0_g4_10
- set val(name),file("out*")  into g_18_logFile11
-
-script:
-coord = params.pair_seq.coord
-act = params.pair_seq.act
-copy_fields_1 = params.pair_seq.copy_fields_1
-copy_fields_2 = params.pair_seq.copy_fields_2
-failed = params.pair_seq.failed
-nproc = params.pair_seq.nproc
-
-if(mate=="pair"){
-	
-	act = (act=="none") ? "" : "--act ${act}"
-	failed = (failed=="true") ? "--failed" : "" 
-	copy_fields_1 = (copy_fields_1=="") ? "" : "--1f ${copy_fields_1}" 
-	copy_fields_2 = (copy_fields_2=="") ? "" : "--2f ${copy_fields_2}"
-	
-	readArray = reads.toString().split(' ')	
-	R1 = readArray[0]
-	R2 = readArray[1]
-	"""
-	PairSeq.py -1 ${R1} -2 ${R2} ${copy_fields_1} ${copy_fields_2} --coord ${coord} ${act} ${failed} >> out_${R1}_PS.log
-	"""
-}else{
-	
-	"""
-	echo -e 'PairSeq works only on pair-end reads.'
-	"""
-}
-
-
-}
-
-boolean isCollectionOrArray_bc(object) {    
-    [Collection, Object[]].any { it.isAssignableFrom(object.getClass()) }
-}
-
-def args_creator_bc(barcode_field, primer_field, act, copy_field, mincount, minqual, minfreq, maxerror, prcons, maxgap, maxdiv, dep){
-	def args_values;
-    if(isCollectionOrArray_bc(barcode_field) || isCollectionOrArray_bc(primer_field) || isCollectionOrArray_bc(copy_field) || isCollectionOrArray_bc(mincount) || isCollectionOrArray_bc(minqual) || isCollectionOrArray_bc(minfreq) || isCollectionOrArray_bc(maxerror) || isCollectionOrArray_bc(prcons) || isCollectionOrArray_bc(maxgap) || isCollectionOrArray_bc(maxdiv) || isCollectionOrArray_bc(dep)){
-    	primer_field = (isCollectionOrArray_bc(primer_field)) ? primer_field : [primer_field,primer_field]
-    	act = (isCollectionOrArray_bc(act)) ? act : [act,act]
-    	copy_field = (isCollectionOrArray_bc(copy_field)) ? copy_field : [copy_field,copy_field]
-    	mincount = (isCollectionOrArray_bc(mincount)) ? mincount : [mincount,mincount]
-    	minqual = (isCollectionOrArray_bc(minqual)) ? minqual : [minqual,minqual]
-    	minfreq = (isCollectionOrArray_bc(minfreq)) ? minfreq : [minfreq,minfreq]
-    	maxerror = (isCollectionOrArray_bc(maxerror)) ? maxerror : [maxerror,maxerror]
-    	prcons = (isCollectionOrArray_bc(prcons)) ? prcons : [prcons,prcons]
-    	maxgap = (isCollectionOrArray_bc(maxgap)) ? maxgap : [maxgap,maxgap]
-    	maxdiv = (isCollectionOrArray_bc(maxdiv)) ? maxdiv : [maxdiv,maxdiv]
-    	dep = (isCollectionOrArray_bc(dep)) ? dep : [dep,dep]
-    	args_values = []
-        [barcode_field,primer_field,act,copy_field,mincount,minqual,minfreq,maxerror,prcons,maxgap,maxdiv,dep].transpose().each { bf,pf,a,cf,mc,mq,mf,mr,pc,mg,md,d -> {
-            bf = (bf=="") ? "" : "--bf ${bf}"
-            pf = (pf=="") ? "" : "--pf ${pf}" 
-            a = (a=="none") ? "" : "--act ${a}" 
-            cf = (cf=="") ? "" : "--cf ${cf}" 
-            mr = (mr=="none") ? "" : "--maxerror ${mr}" 
-            pc = (pc=="none") ? "" : "--prcons ${pc}" 
-            mg = (mg=="none") ? "" : "--maxgap ${mg}" 
-            md = (md=="none") ? "" : "--maxdiv ${md}" 
-            mc = (mc=="none") ? "" : "--n ${mc}" 
-            d = (d=="true") ? "--dep" : "" 
-            args_values.add("${bf} ${pf} ${a} ${cf} ${mc} -q ${mq} --freq ${mf} ${mr} ${pc} ${mg} ${md} ${d}")
-        }}
-    }else{
-        barcode_field = (barcode_field=="") ? "" : "--bf ${barcode_field}"
-        primer_field = (primer_field=="") ? "" : "--pf ${primer_field}" 
-        act = (act=="none") ? "" : "--act ${act}" 
-        copy_field = (copy_field=="") ? "" : "--cf ${copy_field}" 
-        maxerror = (maxerror=="none") ? "" : "--maxerror ${maxerror}" 
-        prcons = (prcons=="none") ? "" : "--prcons ${prcons}" 
-        maxgap = (maxgap=="none") ? "" : "--maxgap ${maxgap}" 
-        maxdiv = (maxdiv=="none") ? "" : "--maxdiv ${maxdiv}" 
-        dep = (dep=="true") ? "--dep" : "" 
-        args_values = "${barcode_field} ${primer_field} ${act} ${copy_field} -n ${mincount} -q ${minqual} --freq ${minfreq} ${maxerror} ${prcons} ${maxgap} ${maxdiv} ${dep}"
-    }
-    return args_values
-}
-
-
-process Build_Consensus_build_consensus {
-
-input:
- set val(name),file(reads) from g_18_reads0_g4_10
- val mate from g_6_mate_g4_10
-
-output:
- set val(name),file("*_consensus-pass.fastq")  into g4_10_reads0_g_20
- set val(name),file("BC*")  into g4_10_logFile1_g4_12
- set val(name),file("out*")  into g4_10_logFile22
-
-script:
-failed = params.Build_Consensus_build_consensus.failed
-nproc = params.Build_Consensus_build_consensus.nproc
-barcode_field = params.Build_Consensus_build_consensus.barcode_field
-primer_field = params.Build_Consensus_build_consensus.primer_field
-act = params.Build_Consensus_build_consensus.act
-copy_field = params.Build_Consensus_build_consensus.copy_field
-mincount = params.Build_Consensus_build_consensus.mincount
-minqual = params.Build_Consensus_build_consensus.minqual
-minfreq = params.Build_Consensus_build_consensus.minfreq
-maxerror = params.Build_Consensus_build_consensus.maxerror
-prcons = params.Build_Consensus_build_consensus.prcons
-maxgap = params.Build_Consensus_build_consensus.maxgap
-maxdiv = params.Build_Consensus_build_consensus.maxdiv
-dep = params.Build_Consensus_build_consensus.dep
-//* @style @condition:{act="none",},{act="min",copy_field},{act="max",copy_field},{act="sum",copy_field},{act="set",copy_field},{act="majority",copy_field} @array:{barcode_field,primer_field,act,copy_field,mincount,minqual,minfreq,maxerror,prcons,maxgap,maxdiv,dep} @multicolumn:{failed,nproc},{barcode_field,primer_field,act,copy_field}, {mincount,minqual,minfreq,maxerror,prcons,maxgap,maxdiv,dep}
-
-args_values_bc = args_creator_bc(barcode_field, primer_field, act, copy_field, mincount, minqual, minfreq, maxerror, prcons, maxgap, maxdiv, dep)
-
-// args 
-if(isCollectionOrArray_bc(args_values_bc)){
-	args_1 = args_values_bc[0]
-	args_2 = args_values_bc[1]
-}else{
-	args_1 = args_values_bc
-	args_2 = args_values_bc
-}
-
-failed = (failed=="true") ? "--failed" : "" 
-
-
-if(mate=="pair"){
-	// files
-	readArray = reads.toString().split(' ')	
-	R1 = readArray[0]
-	R2 = readArray[1]
-	
-	"""
-	BuildConsensus.py --version
-	BuildConsensus.py -s $R1 ${args_1} --log BC_${name}_R1.log ${failed} --nproc ${nproc} 2>&1 | tee -a out_${R1}_BC.log
-	BuildConsensus.py -s $R2 ${args_2} --log BC_${name}_R2.log ${failed} --nproc ${nproc} 2>&1 | tee -a out_${R1}_BC.log
-	"""
-}else{
-	"""
-	BuildConsensus.py -s $reads ${args_1} --outname ${name} --log BC_${name}.log ${failed} --nproc ${nproc} 2>&1 | tee -a out_${R1}_BC.log
-	"""
-}
-
-
-}
-
-
-process Build_Consensus_parse_log_BC {
-
-input:
- set val(name),file(log_file) from g4_10_logFile1_g4_12
- val mate from g_6_mate_g4_12
-
-output:
- file "*table.tab"  into g4_12_logFile0_g4_14, g4_12_logFile0_g4_20
-
-script:
-readArray = log_file.toString()
-
-"""
-ParseLog.py -l ${readArray} -f BARCODE SEQCOUNT CONSCOUNT PRCONS PRFREQ ERROR
-"""
-
-}
-
-
-process Build_Consensus_report_Build_Consensus {
-
-input:
- val matee from g_6_mate_g4_14
- file log_files from g4_12_logFile0_g4_14
-
-output:
- file "*.rmd"  into g4_14_rMarkdown0_g4_20
-
-
-
-
-shell:
-
-if(matee=="pair"){
-	readArray = log_files.toString().split(' ')	
-	R1 = readArray[0]
-	R2 = readArray[1]
-	name = R1-"_table.tab"
-	'''
-	#!/usr/bin/env perl
-	
-	
-	my $script = <<'EOF';
-	
-	
-	
-	```{R, message=FALSE, echo=FALSE, results="hide"}
-	# Setup
-	library(prestor)
-	library(knitr)
-	library(captioner)
-	
-	plot_titles <- c("Read 1", "Read 2")
-	if (!exists("tables")) { tables <- captioner(prefix="Table") }
-	if (!exists("figures")) { figures <- captioner(prefix="Figure") }
-	figures("cons_size", 
-	        paste("Histogram of UMI read group sizes (reads per UMI) for",  
-	              plot_titles[1], "(top) and", plot_titles[2], "(bottom).",
-	              "The x-axis indicates the number of reads in a UMI group and the y-axis is the 
-	               number of UMI groups with that size. The Consensus and Total bars are overlayed 
-	               (not stacked) histograms indicating whether the distribution has been calculated 
-	               using the total number of reads (Total) or only those reads used for consensus 
-	               generation (Consensus)."))
-	figures("cons_prfreq", 
-	        paste("Histograms showing the distribution of majority primer frequency for all UMI read groups for",
-	              plot_titles[1], "(top) and", plot_titles[2], "(bottom)."))
-	figures("cons_prsize", 
-	        paste("Violin plots showing the distribution of UMI read group sizes by majority primer for",
-	              plot_titles[1], "(top) and", plot_titles[2], "(bottom).",
-	              "Only groups with majority primer frequency over the PRFREQ threshold set when running
-	               BuildConsensus. Meaning, only retained UMI groups."))
-	figures("cons_error", 
-	        paste("Histogram showing the distribution of UMI read group error rates for",
-	              plot_titles[1], "(top) and", plot_titles[2], "(bottom)."))
-	figures("cons_prerror", 
-	        paste("Violin plots showing the distribution of UMI read group error rates by majority primer for",
-	              plot_titles[1], "(top) and", plot_titles[2], "(bottom).",
-	              "Only groups with majority primer frequency over the PRFREQ threshold set when 
-	               running BuildConsensus. Meaning, only retained UMI groups."))
-	```
-	
-	```{r, echo=FALSE}
-	consensus_log_1 <- loadLogTable(file.path(".", "!{R1}"))
-	consensus_log_2 <- loadLogTable(file.path(".", "!{R2}"))
-	```
-	
-	# Generation of UMI Consensus Sequences
-	
-	Reads sharing the same UMI are collapsed into a single consensus sequence by
-	the BuildConsensus tool. BuildConsensus considers several factors in determining
-	the final consensus sequence, including the number of reads in a UMI group, 
-	Phred quality scores (`Q`), primer annotations, and the number of mismatches 
-	within a UMI group. Quality scores are used to resolve conflicting base calls in
-	a UMI read group and the final consensus sequence is assigned consensus quality 
-	scores derived from the individual base quality scores. The numbers of reads in a UMI
-	group, number of matching primer annotations, and error rate (average base mismatches from 
-	consensus) are used as strict cut-offs for exclusion of erroneous UMI read groups.
-	Additionally, individual reads are excluded whose primer annotation differs from 
-	the majority in cases where there are sufficient number of reads exceeding 
-	the primer consensus cut-off.
-	
-	## Reads per UMI
-	
-	```{r, echo=FALSE, warning=FALSE}
-	plotBuildConsensus(consensus_log_1, consensus_log_2, titles=plot_titles, 
-	                   style="size", sizing="figure")
-	```
-	
-	`r figures("cons_size")`
-	
-	## UMI read group primer frequencies
-	
-	```{r, echo=FALSE, warning=FALSE}
-	plotBuildConsensus(consensus_log_1, consensus_log_2, titles=plot_titles, 
-	                   style="prfreq", sizing="figure")
-	```
-	
-	`r figures("cons_prfreq")`
-	
-	```{r, echo=FALSE, warning=FALSE}
-	plotBuildConsensus(consensus_log_1, consensus_log_2, titles=plot_titles, 
-	                   style="prsize", sizing="figure")
-	```
-	
-	`r figures("cons_prsize")`
-	
-	## UMI read group error rates
-	
-	```{r, echo=FALSE, warning=FALSE}
-	plotBuildConsensus(consensus_log_1, consensus_log_2, titles=plot_titles, 
-	                   style="error", sizing="figure")
-	```
-	
-	`r figures("cons_error")`
-	
-	```{r, echo=FALSE, warning=FALSE}
-	plotBuildConsensus(consensus_log_1, consensus_log_2, titles=plot_titles, 
-	                   style="prerror", sizing="figure")
-	```
-	
-	`r figures("cons_prerror")`
-	
-	EOF
-	
-	open OUT, ">!{name}.rmd";
-	print OUT $script;
-	close OUT;
-	
-	'''
-
-}else{
-	
-	readArray = log_files.toString().split(' ')
-	R1 = readArray[0]
-	name = R1-"_table.tab"
-	'''
-	#!/usr/bin/env perl
-	
-	
-	my $script = <<'EOF';
-	
-	
-	
-		
-	```{R, message=FALSE, echo=FALSE, results="hide"}
-	# Setup
-	library(prestor)
-	library(knitr)
-	library(captioner)
-	
-	if (!exists("tables")) { tables <- captioner(prefix="Table") }
-	if (!exists("figures")) { figures <- captioner(prefix="Figure") }
-	figures("cons_size", "Histogram of UMI read group sizes (reads per UMI). 
-	                      The x-axis indicates the number of reads 
-	                      in a UMI group and the y-axis is the number of UMI groups 
-	                      with that size. The Consensus and Total bars are overlayed
-	                      (not stacked) histograms indicating whether the distribution
-	                      has been calculated using the total number of reads (Total)
-	                      or only those reads used for consensus generation (Consensus).")
-	figures("cons_error", "Histogram showing the distribution of UMI read group error rates.")
-	```
-	
-	```{r, echo=FALSE}
-	consensus_log <- loadLogTable(file.path(".", "!{R1}"))
-	```
-	
-	# Generation of UMI Consensus Sequences
-	
-	Reads sharing the same UMI are collapsed into a single consensus sequence by
-	the BuildConsensus tool. BuildConsensus considers several factors in determining
-	the final consensus sequence, including the number of reads in a UMI group, 
-	Phred quality scores (`Q`), primer annotations, and the number of mismatches 
-	within a UMI group. Quality scores are used to resolve conflicting base calls in
-	a UMI read group and the final consensus sequence is assigned consensus quality 
-	scores derived from the individual base quality scores. The numbers of reads in a UMI
-	group, number of matching primer annotations, and error rate (average base mismatches from 
-	consensus) are used as strict cut-offs for exclusion of erroneous UMI read groups.
-	Additionally, individual reads are excluded whose primer annotation differs from 
-	the majority in cases where there are sufficient number of reads exceeding 
-	the primer consensus cut-off.
-	
-	## Reads per UMI
-	
-	```{r, echo=FALSE, warning=FALSE}
-	plotBuildConsensus(consensus_log, style="size", sizing="figure")
-	```
-	
-	`r figures("cons_size")`
-	
-	## UMI read group error rates
-	
-	```{r, echo=FALSE, warning=FALSE}
-	plotBuildConsensus(consensus_log, style="error", sizing="figure")
-	```
-	
-	`r figures("cons_error")`
-	
-	EOF
-	
-	open OUT, ">!{name}.rmd";
-	print OUT $script;
-	close OUT;
-	
-	'''
-}
-
-}
-
-
-process Build_Consensus_presto_render_rmarkdown {
-
-input:
- file rmk from g4_14_rMarkdown0_g4_20
- file log_file from g4_12_logFile0_g4_20
-
-output:
- file "*.html"  into g4_20_outputFileHTML00
- file "*csv" optional true  into g4_20_csvFile11
-
-"""
-
-#!/usr/bin/env Rscript 
-
-rmarkdown::render("${rmk}", clean=TRUE, output_format="html_document", output_dir=".")
-
-"""
-}
-
-
 process pair_seq_after_consensus {
 
 input:
- set val(name),file(reads) from g4_10_reads0_g_20
  val mate from g_6_mate_g_20
 
 output:
@@ -1188,6 +672,522 @@ input:
 output:
  file "*.html"  into g3_25_outputFileHTML00
  file "*csv" optional true  into g3_25_csvFile11
+
+"""
+
+#!/usr/bin/env Rscript 
+
+rmarkdown::render("${rmk}", clean=TRUE, output_format="html_document", output_dir=".")
+
+"""
+}
+
+
+process Mask_Primer_MaskPrimers {
+
+input:
+ val mate from g_6_mate_g21_11
+ set val(name),file(reads) from g0_0_reads0_g21_11
+
+output:
+ set val(name), file("*_primers-pass.fast*")  into g21_11_reads0_g_18
+ set val(name), file("*_primers-fail.fast*") optional true  into g21_11_reads_failed11
+ set val(name), file("MP_*")  into g21_11_logFile2_g21_9
+ set val(name),file("out*")  into g21_11_logFile33
+
+script:
+method = params.Mask_Primer_MaskPrimers.method
+barcode_field = params.Mask_Primer_MaskPrimers.barcode_field
+primer_field = params.Mask_Primer_MaskPrimers.primer_field
+barcode = params.Mask_Primer_MaskPrimers.barcode
+revpr = params.Mask_Primer_MaskPrimers.revpr
+mode = params.Mask_Primer_MaskPrimers.mode
+failed = params.Mask_Primer_MaskPrimers.failed
+fasta = params.Mask_Primer_MaskPrimers.fasta
+nproc = params.Mask_Primer_MaskPrimers.nproc
+maxerror = params.Mask_Primer_MaskPrimers.maxerror
+umi_length = params.Mask_Primer_MaskPrimers.umi_length
+start = params.Mask_Primer_MaskPrimers.start
+extract_length = params.Mask_Primer_MaskPrimers.extract_length
+maxlen = params.Mask_Primer_MaskPrimers.maxlen
+skiprc = params.Mask_Primer_MaskPrimers.skiprc
+R1_primers = params.Mask_Primer_MaskPrimers.R1_primers
+R2_primers = params.Mask_Primer_MaskPrimers.R2_primers
+//* @style @condition:{method="score",umi_length,start,maxerror}{method="extract",umi_length,start},{method="align",maxerror,maxlen,skiprc}, {method="extract",start,extract_length} @array:{method,barcode_field,primer_field,barcode,revpr,mode,maxerror,umi_length,start,extract_length,maxlen,skiprc} @multicolumn:{method,barcode_field,primer_field,barcode,revpr,mode,failed,nproc,maxerror,umi_length,start,extract_length,maxlen,skiprc}
+
+method = (method.collect().size==2) ? method : [method[0],method[0]]
+barcode_field = (barcode_field.collect().size==2) ? barcode_field : [barcode_field[0],barcode_field[0]]
+primer_field = (primer_field.collect().size==2) ? primer_field : [primer_field[0],primer_field[0]]
+barcode = (barcode.collect().size==2) ? barcode : [barcode[0],barcode[0]]
+revpr = (revpr.collect().size==2) ? revpr : [revpr[0],revpr[0]]
+mode = (mode.collect().size==2) ? mode : [mode[0],mode[0]]
+maxerror = (maxerror.collect().size==2) ? maxerror : [maxerror[0],maxerror[0]]
+umi_length = (umi_length.collect().size==2) ? umi_length : [umi_length[0],umi_length[0]]
+start = (start.collect().size==2) ? start : [start[0],start[0]]
+extract_length = (extract_length.collect().size==2) ? extract_length : [extract_length[0],extract_length[0]]
+maxlen = (maxlen.collect().size==2) ? maxlen : [maxlen[0],maxlen[0]]
+skiprc = (skiprc.collect().size==2) ? skiprc : [skiprc[0],skiprc[0]]
+failed = (failed=="true") ? "--failed" : ""
+fasta = (fasta=="true") ? "--fasta" : ""
+def args_values = [];
+[method,barcode_field,primer_field,barcode,revpr,mode,maxerror,umi_length,start,extract_length,maxlen,skiprc].transpose().each { m,bf,pf,bc,rp,md,mr,ul,s,el,ml,sk -> {
+    
+    if(m=="align"){
+        s = ""
+    }else{
+        if(bc=="false"){
+            s = "--start ${s}"
+        }else{
+            s = s + ul
+            s = "--start ${s}"
+        }
+    }
+    
+    el = (m=="extract") ? "--len ${el}" : ""
+    mr = (m=="extract") ? "" : "--maxerror ${mr}" 
+    ml = (m=="align") ? "--maxlen ${ml}" : "" 
+    sk = (m=="align" && sk=="true") ? "--skiprc" : "" 
+    
+    PRIMER_FIELD = "${pf}"
+    
+    // all
+    bf = (bf=="") ? "" : "--bf ${bf}"
+    pf = (pf=="") ? "" : "--pf ${pf}"
+    bc = (bc=="false") ? "" : "--barcode"
+    rp = (rp=="false") ? "" : "--revpr"
+    args_values.add("${m} --mode ${md} ${bc} ${rp} ${mr} ${s} ${el} ${ml} ${sk} ${pf} ${bf}")
+    
+    
+}}
+
+readArray = reads.toString().split(' ')
+if(mate=="pair"){
+	args_1 = args_values[0]
+	args_2 = args_values[1]
+	
+  
+
+
+	R1 = readArray[0]
+	R2 = readArray[1]
+	
+	R1_primers = (method[0]=="extract") ? "" : "-p ${R1_primers}"
+	R2_primers = (method[1]=="extract") ? "" : "-p ${R2_primers}"
+	
+	
+	"""
+	
+	MaskPrimers.py ${args_1} -s ${R1} ${R1_primers} --log MP_R1_${name}.log  --nproc ${nproc} ${failed} ${fasta} 2>&1 | tee -a out_${R1}_MP.log & \
+	MaskPrimers.py ${args_2} -s ${R2} ${R2_primers} --log MP_R2_${name}.log  --nproc ${nproc} ${failed} ${fasta} 2>&1 | tee -a out_${R1}_MP.log & \
+	wait
+	"""
+}else{
+	args_1 = args_values[0]
+	
+	R1_primers = (method[0]=="extract") ? "" : "-p ${R1_primers}"
+	
+	R1 = readArray[0]
+
+	"""
+	echo -e "Assuming inputs for R1\n"
+	
+	MaskPrimers.py ${args_1} -s ${reads} ${R1_primers} --log MP_${name}.log  --nproc ${nproc} ${failed} ${fasta} 2>&1 | tee -a out_${R1}_MP.log
+	"""
+}
+
+}
+
+
+process pair_seq {
+
+input:
+ set val(name),file(reads) from g21_11_reads0_g_18
+ val mate from g_6_mate_g_18
+
+output:
+ set val(name),file("*_pair-pass.fastq")  into g_18_reads0_g4_10
+ set val(name),file("out*")  into g_18_logFile11
+
+script:
+coord = params.pair_seq.coord
+act = params.pair_seq.act
+copy_fields_1 = params.pair_seq.copy_fields_1
+copy_fields_2 = params.pair_seq.copy_fields_2
+failed = params.pair_seq.failed
+nproc = params.pair_seq.nproc
+
+if(mate=="pair"){
+	
+	act = (act=="none") ? "" : "--act ${act}"
+	failed = (failed=="true") ? "--failed" : "" 
+	copy_fields_1 = (copy_fields_1=="") ? "" : "--1f ${copy_fields_1}" 
+	copy_fields_2 = (copy_fields_2=="") ? "" : "--2f ${copy_fields_2}"
+	
+	readArray = reads.toString().split(' ')	
+	R1 = readArray[0]
+	R2 = readArray[1]
+	"""
+	PairSeq.py -1 ${R1} -2 ${R2} ${copy_fields_1} ${copy_fields_2} --coord ${coord} ${act} ${failed} >> out_${R1}_PS.log
+	"""
+}else{
+	
+	"""
+	echo -e 'PairSeq works only on pair-end reads.'
+	"""
+}
+
+
+}
+
+boolean isCollectionOrArray_bc(object) {    
+    [Collection, Object[]].any { it.isAssignableFrom(object.getClass()) }
+}
+
+def args_creator_bc(barcode_field, primer_field, act, copy_field, mincount, minqual, minfreq, maxerror, prcons, maxgap, maxdiv, dep){
+	def args_values;
+    if(isCollectionOrArray_bc(barcode_field) || isCollectionOrArray_bc(primer_field) || isCollectionOrArray_bc(copy_field) || isCollectionOrArray_bc(mincount) || isCollectionOrArray_bc(minqual) || isCollectionOrArray_bc(minfreq) || isCollectionOrArray_bc(maxerror) || isCollectionOrArray_bc(prcons) || isCollectionOrArray_bc(maxgap) || isCollectionOrArray_bc(maxdiv) || isCollectionOrArray_bc(dep)){
+    	primer_field = (isCollectionOrArray_bc(primer_field)) ? primer_field : [primer_field,primer_field]
+    	act = (isCollectionOrArray_bc(act)) ? act : [act,act]
+    	copy_field = (isCollectionOrArray_bc(copy_field)) ? copy_field : [copy_field,copy_field]
+    	mincount = (isCollectionOrArray_bc(mincount)) ? mincount : [mincount,mincount]
+    	minqual = (isCollectionOrArray_bc(minqual)) ? minqual : [minqual,minqual]
+    	minfreq = (isCollectionOrArray_bc(minfreq)) ? minfreq : [minfreq,minfreq]
+    	maxerror = (isCollectionOrArray_bc(maxerror)) ? maxerror : [maxerror,maxerror]
+    	prcons = (isCollectionOrArray_bc(prcons)) ? prcons : [prcons,prcons]
+    	maxgap = (isCollectionOrArray_bc(maxgap)) ? maxgap : [maxgap,maxgap]
+    	maxdiv = (isCollectionOrArray_bc(maxdiv)) ? maxdiv : [maxdiv,maxdiv]
+    	dep = (isCollectionOrArray_bc(dep)) ? dep : [dep,dep]
+    	args_values = []
+        [barcode_field,primer_field,act,copy_field,mincount,minqual,minfreq,maxerror,prcons,maxgap,maxdiv,dep].transpose().each { bf,pf,a,cf,mc,mq,mf,mr,pc,mg,md,d -> {
+            bf = (bf=="") ? "" : "--bf ${bf}"
+            pf = (pf=="") ? "" : "--pf ${pf}" 
+            a = (a=="none") ? "" : "--act ${a}" 
+            cf = (cf=="") ? "" : "--cf ${cf}" 
+            mr = (mr=="none") ? "" : "--maxerror ${mr}" 
+            pc = (pc=="none") ? "" : "--prcons ${pc}" 
+            mg = (mg=="none") ? "" : "--maxgap ${mg}" 
+            md = (md=="none") ? "" : "--maxdiv ${md}" 
+            mc = (mc=="none") ? "" : "--n ${mc}" 
+            d = (d=="true") ? "--dep" : "" 
+            args_values.add("${bf} ${pf} ${a} ${cf} ${mc} -q ${mq} --freq ${mf} ${mr} ${pc} ${mg} ${md} ${d}")
+        }}
+    }else{
+        barcode_field = (barcode_field=="") ? "" : "--bf ${barcode_field}"
+        primer_field = (primer_field=="") ? "" : "--pf ${primer_field}" 
+        act = (act=="none") ? "" : "--act ${act}" 
+        copy_field = (copy_field=="") ? "" : "--cf ${copy_field}" 
+        maxerror = (maxerror=="none") ? "" : "--maxerror ${maxerror}" 
+        prcons = (prcons=="none") ? "" : "--prcons ${prcons}" 
+        maxgap = (maxgap=="none") ? "" : "--maxgap ${maxgap}" 
+        maxdiv = (maxdiv=="none") ? "" : "--maxdiv ${maxdiv}" 
+        dep = (dep=="true") ? "--dep" : "" 
+        args_values = "${barcode_field} ${primer_field} ${act} ${copy_field} -n ${mincount} -q ${minqual} --freq ${minfreq} ${maxerror} ${prcons} ${maxgap} ${maxdiv} ${dep}"
+    }
+    return args_values
+}
+
+
+process Build_Consensus_build_consensus {
+
+input:
+ set val(name),file(reads) from g_18_reads0_g4_10
+ val mate from g_6_mate_g4_10
+
+output:
+ set val(name),file("*_consensus-pass.fastq")  into g4_10_reads00
+ set val(name),file("BC*")  into g4_10_logFile1_g4_12
+ set val(name),file("out*")  into g4_10_logFile22
+
+script:
+failed = params.Build_Consensus_build_consensus.failed
+nproc = params.Build_Consensus_build_consensus.nproc
+barcode_field = params.Build_Consensus_build_consensus.barcode_field
+primer_field = params.Build_Consensus_build_consensus.primer_field
+act = params.Build_Consensus_build_consensus.act
+copy_field = params.Build_Consensus_build_consensus.copy_field
+mincount = params.Build_Consensus_build_consensus.mincount
+minqual = params.Build_Consensus_build_consensus.minqual
+minfreq = params.Build_Consensus_build_consensus.minfreq
+maxerror = params.Build_Consensus_build_consensus.maxerror
+prcons = params.Build_Consensus_build_consensus.prcons
+maxgap = params.Build_Consensus_build_consensus.maxgap
+maxdiv = params.Build_Consensus_build_consensus.maxdiv
+dep = params.Build_Consensus_build_consensus.dep
+//* @style @condition:{act="none",},{act="min",copy_field},{act="max",copy_field},{act="sum",copy_field},{act="set",copy_field},{act="majority",copy_field} @array:{barcode_field,primer_field,act,copy_field,mincount,minqual,minfreq,maxerror,prcons,maxgap,maxdiv,dep} @multicolumn:{failed,nproc},{barcode_field,primer_field,act,copy_field}, {mincount,minqual,minfreq,maxerror,prcons,maxgap,maxdiv,dep}
+
+args_values_bc = args_creator_bc(barcode_field, primer_field, act, copy_field, mincount, minqual, minfreq, maxerror, prcons, maxgap, maxdiv, dep)
+
+// args 
+if(isCollectionOrArray_bc(args_values_bc)){
+	args_1 = args_values_bc[0]
+	args_2 = args_values_bc[1]
+}else{
+	args_1 = args_values_bc
+	args_2 = args_values_bc
+}
+
+failed = (failed=="true") ? "--failed" : "" 
+
+
+if(mate=="pair"){
+	// files
+	readArray = reads.toString().split(' ')	
+	R1 = readArray[0]
+	R2 = readArray[1]
+	
+	"""
+	BuildConsensus.py --version
+	BuildConsensus.py -s $R1 ${args_1} --log BC_${name}_R1.log ${failed} --nproc ${nproc} 2>&1 | tee -a out_${R1}_BC.log
+	BuildConsensus.py -s $R2 ${args_2} --log BC_${name}_R2.log ${failed} --nproc ${nproc} 2>&1 | tee -a out_${R1}_BC.log
+	"""
+}else{
+	"""
+	BuildConsensus.py -s $reads ${args_1} --outname ${name} --log BC_${name}.log ${failed} --nproc ${nproc} 2>&1 | tee -a out_${R1}_BC.log
+	"""
+}
+
+
+}
+
+
+process Build_Consensus_parse_log_BC {
+
+input:
+ set val(name),file(log_file) from g4_10_logFile1_g4_12
+ val mate from g_6_mate_g4_12
+
+output:
+ file "*table.tab"  into g4_12_logFile0_g4_14, g4_12_logFile0_g4_20
+
+script:
+readArray = log_file.toString()
+
+"""
+ParseLog.py -l ${readArray} -f BARCODE SEQCOUNT CONSCOUNT PRCONS PRFREQ ERROR
+"""
+
+}
+
+
+process Build_Consensus_report_Build_Consensus {
+
+input:
+ val matee from g_6_mate_g4_14
+ file log_files from g4_12_logFile0_g4_14
+
+output:
+ file "*.rmd"  into g4_14_rMarkdown0_g4_20
+
+
+
+
+shell:
+
+if(matee=="pair"){
+	readArray = log_files.toString().split(' ')	
+	R1 = readArray[0]
+	R2 = readArray[1]
+	name = R1-"_table.tab"
+	'''
+	#!/usr/bin/env perl
+	
+	
+	my $script = <<'EOF';
+	
+	
+	
+	```{R, message=FALSE, echo=FALSE, results="hide"}
+	# Setup
+	library(prestor)
+	library(knitr)
+	library(captioner)
+	
+	plot_titles <- c("Read 1", "Read 2")
+	if (!exists("tables")) { tables <- captioner(prefix="Table") }
+	if (!exists("figures")) { figures <- captioner(prefix="Figure") }
+	figures("cons_size", 
+	        paste("Histogram of UMI read group sizes (reads per UMI) for",  
+	              plot_titles[1], "(top) and", plot_titles[2], "(bottom).",
+	              "The x-axis indicates the number of reads in a UMI group and the y-axis is the 
+	               number of UMI groups with that size. The Consensus and Total bars are overlayed 
+	               (not stacked) histograms indicating whether the distribution has been calculated 
+	               using the total number of reads (Total) or only those reads used for consensus 
+	               generation (Consensus)."))
+	figures("cons_prfreq", 
+	        paste("Histograms showing the distribution of majority primer frequency for all UMI read groups for",
+	              plot_titles[1], "(top) and", plot_titles[2], "(bottom)."))
+	figures("cons_prsize", 
+	        paste("Violin plots showing the distribution of UMI read group sizes by majority primer for",
+	              plot_titles[1], "(top) and", plot_titles[2], "(bottom).",
+	              "Only groups with majority primer frequency over the PRFREQ threshold set when running
+	               BuildConsensus. Meaning, only retained UMI groups."))
+	figures("cons_error", 
+	        paste("Histogram showing the distribution of UMI read group error rates for",
+	              plot_titles[1], "(top) and", plot_titles[2], "(bottom)."))
+	figures("cons_prerror", 
+	        paste("Violin plots showing the distribution of UMI read group error rates by majority primer for",
+	              plot_titles[1], "(top) and", plot_titles[2], "(bottom).",
+	              "Only groups with majority primer frequency over the PRFREQ threshold set when 
+	               running BuildConsensus. Meaning, only retained UMI groups."))
+	```
+	
+	```{r, echo=FALSE}
+	consensus_log_1 <- loadLogTable(file.path(".", "!{R1}"))
+	consensus_log_2 <- loadLogTable(file.path(".", "!{R2}"))
+	```
+	
+	# Generation of UMI Consensus Sequences
+	
+	Reads sharing the same UMI are collapsed into a single consensus sequence by
+	the BuildConsensus tool. BuildConsensus considers several factors in determining
+	the final consensus sequence, including the number of reads in a UMI group, 
+	Phred quality scores (`Q`), primer annotations, and the number of mismatches 
+	within a UMI group. Quality scores are used to resolve conflicting base calls in
+	a UMI read group and the final consensus sequence is assigned consensus quality 
+	scores derived from the individual base quality scores. The numbers of reads in a UMI
+	group, number of matching primer annotations, and error rate (average base mismatches from 
+	consensus) are used as strict cut-offs for exclusion of erroneous UMI read groups.
+	Additionally, individual reads are excluded whose primer annotation differs from 
+	the majority in cases where there are sufficient number of reads exceeding 
+	the primer consensus cut-off.
+	
+	## Reads per UMI
+	
+	```{r, echo=FALSE, warning=FALSE}
+	plotBuildConsensus(consensus_log_1, consensus_log_2, titles=plot_titles, 
+	                   style="size", sizing="figure")
+	```
+	
+	`r figures("cons_size")`
+	
+	## UMI read group primer frequencies
+	
+	```{r, echo=FALSE, warning=FALSE}
+	plotBuildConsensus(consensus_log_1, consensus_log_2, titles=plot_titles, 
+	                   style="prfreq", sizing="figure")
+	```
+	
+	`r figures("cons_prfreq")`
+	
+	```{r, echo=FALSE, warning=FALSE}
+	plotBuildConsensus(consensus_log_1, consensus_log_2, titles=plot_titles, 
+	                   style="prsize", sizing="figure")
+	```
+	
+	`r figures("cons_prsize")`
+	
+	## UMI read group error rates
+	
+	```{r, echo=FALSE, warning=FALSE}
+	plotBuildConsensus(consensus_log_1, consensus_log_2, titles=plot_titles, 
+	                   style="error", sizing="figure")
+	```
+	
+	`r figures("cons_error")`
+	
+	```{r, echo=FALSE, warning=FALSE}
+	plotBuildConsensus(consensus_log_1, consensus_log_2, titles=plot_titles, 
+	                   style="prerror", sizing="figure")
+	```
+	
+	`r figures("cons_prerror")`
+	
+	EOF
+	
+	open OUT, ">!{name}.rmd";
+	print OUT $script;
+	close OUT;
+	
+	'''
+
+}else{
+	
+	readArray = log_files.toString().split(' ')
+	R1 = readArray[0]
+	name = R1-"_table.tab"
+	'''
+	#!/usr/bin/env perl
+	
+	
+	my $script = <<'EOF';
+	
+	
+	
+		
+	```{R, message=FALSE, echo=FALSE, results="hide"}
+	# Setup
+	library(prestor)
+	library(knitr)
+	library(captioner)
+	
+	if (!exists("tables")) { tables <- captioner(prefix="Table") }
+	if (!exists("figures")) { figures <- captioner(prefix="Figure") }
+	figures("cons_size", "Histogram of UMI read group sizes (reads per UMI). 
+	                      The x-axis indicates the number of reads 
+	                      in a UMI group and the y-axis is the number of UMI groups 
+	                      with that size. The Consensus and Total bars are overlayed
+	                      (not stacked) histograms indicating whether the distribution
+	                      has been calculated using the total number of reads (Total)
+	                      or only those reads used for consensus generation (Consensus).")
+	figures("cons_error", "Histogram showing the distribution of UMI read group error rates.")
+	```
+	
+	```{r, echo=FALSE}
+	consensus_log <- loadLogTable(file.path(".", "!{R1}"))
+	```
+	
+	# Generation of UMI Consensus Sequences
+	
+	Reads sharing the same UMI are collapsed into a single consensus sequence by
+	the BuildConsensus tool. BuildConsensus considers several factors in determining
+	the final consensus sequence, including the number of reads in a UMI group, 
+	Phred quality scores (`Q`), primer annotations, and the number of mismatches 
+	within a UMI group. Quality scores are used to resolve conflicting base calls in
+	a UMI read group and the final consensus sequence is assigned consensus quality 
+	scores derived from the individual base quality scores. The numbers of reads in a UMI
+	group, number of matching primer annotations, and error rate (average base mismatches from 
+	consensus) are used as strict cut-offs for exclusion of erroneous UMI read groups.
+	Additionally, individual reads are excluded whose primer annotation differs from 
+	the majority in cases where there are sufficient number of reads exceeding 
+	the primer consensus cut-off.
+	
+	## Reads per UMI
+	
+	```{r, echo=FALSE, warning=FALSE}
+	plotBuildConsensus(consensus_log, style="size", sizing="figure")
+	```
+	
+	`r figures("cons_size")`
+	
+	## UMI read group error rates
+	
+	```{r, echo=FALSE, warning=FALSE}
+	plotBuildConsensus(consensus_log, style="error", sizing="figure")
+	```
+	
+	`r figures("cons_error")`
+	
+	EOF
+	
+	open OUT, ">!{name}.rmd";
+	print OUT $script;
+	close OUT;
+	
+	'''
+}
+
+}
+
+
+process Build_Consensus_presto_render_rmarkdown {
+
+input:
+ file rmk from g4_14_rMarkdown0_g4_20
+ file log_file from g4_12_logFile0_g4_20
+
+output:
+ file "*.html"  into g4_20_outputFileHTML00
+ file "*csv" optional true  into g4_20_csvFile11
 
 """
 
