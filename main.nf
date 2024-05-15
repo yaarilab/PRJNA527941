@@ -7,7 +7,7 @@ params.metadata.metadata = "${params.projectDir}/tools.json"
 if (!params.mate){params.mate = ""} 
 if (!params.reads){params.reads = ""} 
 
-Channel.value(params.mate).into{g_6_mate_g_8;g_6_mate_g0_0;g_6_mate_g0_5;g_6_mate_g0_7;g_6_mate_g1_11;g_6_mate_g1_9;g_6_mate_g1_12;g_6_mate_g3_12;g_6_mate_g3_15;g_6_mate_g3_19;g_6_mate_g4_10;g_6_mate_g4_12;g_6_mate_g4_14}
+Channel.value(params.mate).into{g_6_mate_g_8;g_6_mate_g_18;g_6_mate_g0_0;g_6_mate_g0_5;g_6_mate_g0_7;g_6_mate_g1_11;g_6_mate_g1_9;g_6_mate_g1_12;g_6_mate_g3_12;g_6_mate_g3_15;g_6_mate_g3_19;g_6_mate_g4_10;g_6_mate_g4_12;g_6_mate_g4_14}
 if (params.reads){
 Channel
 	.fromFilePairs( params.reads , size: params.mate == "single" ? 1 : params.mate == "pair" ? 2 : params.mate == "triple" ? 3 : params.mate == "quadruple" ? 4 : -1 )
@@ -79,7 +79,7 @@ input:
  val mate from g_6_mate_g0_0
 
 output:
- set val(name), file("*_${method}-pass.fast*")  into g0_0_reads0_g3_12
+ set val(name), file("*_${method}-pass.fast*")  into g0_0_reads0_g_18
  set val(name), file("FS_*")  into g0_0_logFile1_g0_5
  set val(name), file("*_${method}-fail.fast*") optional true  into g0_0_reads22
  set val(name),file("out*") optional true  into g0_0_logFile33
@@ -124,6 +124,48 @@ if(mate=="pair"){
 	R1 = readArray[0]
 	"""
 	FilterSeq.py ${method} -s $R1 ${q} ${n_length} ${n_missing} --nproc ${nproc} --log FS_${name}.log --failed ${fasta} 2>&1 | tee -a out_${R1}_FS.log
+	"""
+}
+
+
+}
+
+
+process pair_seq {
+
+input:
+ set val(name),file(reads) from g0_0_reads0_g_18
+ val mate from g_6_mate_g_18
+
+output:
+ set val(name),file("*_pair-pass.fastq")  into g_18_reads0_g3_12
+ set val(name),file("out*")  into g_18_logFile11
+
+script:
+coord = params.pair_seq.coord
+act = params.pair_seq.act
+copy_fields_1 = params.pair_seq.copy_fields_1
+copy_fields_2 = params.pair_seq.copy_fields_2
+failed = params.pair_seq.failed
+nproc = params.pair_seq.nproc
+
+if(mate=="pair"){
+	
+	act = (act=="none") ? "" : "--act ${act}"
+	failed = (failed=="true") ? "--failed" : "" 
+	copy_fields_1 = (copy_fields_1=="") ? "" : "--1f ${copy_fields_1}" 
+	copy_fields_2 = (copy_fields_2=="") ? "" : "--2f ${copy_fields_2}"
+	
+	readArray = reads.toString().split(' ')	
+	R1 = readArray[0]
+	R2 = readArray[1]
+	"""
+	PairSeq.py -1 ${R1} -2 ${R2} ${copy_fields_1} ${copy_fields_2} --coord ${coord} ${act} ${failed} >> out_${R1}_PS.log
+	"""
+}else{
+	
+	"""
+	echo -e 'PairSeq works only on pair-end reads.'
 	"""
 }
 
@@ -301,7 +343,7 @@ rmarkdown::render("${rmk}", clean=TRUE, output_format="html_document", output_di
 process Assemble_pairs_assemble_pairs {
 
 input:
- set val(name),file(reads) from g0_0_reads0_g3_12
+ set val(name),file(reads) from g_18_reads0_g3_12
  val mate from g_6_mate_g3_12
 
 output:
