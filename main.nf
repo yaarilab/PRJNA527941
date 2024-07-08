@@ -984,7 +984,7 @@ input:
  set val(name), file(reads) from g3_12_reads0_g_16
 
 output:
- set val(name),  file("*_collapse-unique.fast*")  into g_16_reads0_g_14
+ set val(name),  file("*_collapse-unique.fast*")  into g_16_reads0_g_22
  set val(name),  file("*_collapse-duplicate.fast*") optional true  into g_16_reads_duplicate11
  set val(name),  file("*_collapse-undetermined.fast*") optional true  into g_16_reads_undetermined22
  file "CS_*"  into g_16_logFile33
@@ -1013,11 +1013,87 @@ CollapseSeq.py -s ${reads} -n ${max_missing} ${fasta} ${inner} ${uf} ${cf} ${act
 }
 
 
+process parse_headers_prcons {
+
+input:
+ set val(name), file(reads) from g_16_reads0_g_22
+
+output:
+ set val(name),file("*${out}")  into g_22_reads0_g_23
+
+script:
+method = params.parse_headers_prcons.method
+act = params.parse_headers_prcons.act
+args = params.parse_headers_prcons.args
+
+
+if(method=="collapse" || method=="copy" || method=="rename" || method=="merge"){
+	out="_reheader.fast*"
+	act = (act=="none") ? "" : "--act ${act}"
+	"""
+	ParseHeaders.py  ${method} -s ${reads} ${args} ${act}
+	"""
+}else{
+	if(method=="table"){
+			out=".tab"
+			"""
+			ParseHeaders.py ${method} -s ${reads} ${args}
+			"""	
+	}else{
+		out="_reheader.fast*"
+		"""
+		ParseHeaders.py ${method} -s ${reads} ${args}
+		"""		
+	}
+}
+
+
+}
+
+
+process parse_headers_rename {
+
+input:
+ set val(name), file(reads) from g_22_reads0_g_23
+
+output:
+ set val(name),file("*${out}")  into g_23_reads0_g_14
+
+script:
+method = params.parse_headers_rename.method
+act = params.parse_headers_rename.act
+args = params.parse_headers_rename.args
+
+
+if(method=="collapse" || method=="copy" || method=="rename" || method=="merge"){
+	out="_reheader.fast*"
+	act = (act=="none") ? "" : "--act ${act}"
+	"""
+	ParseHeaders.py  ${method} -s ${reads} ${args} ${act}
+	"""
+}else{
+	if(method=="table"){
+			out=".tab"
+			"""
+			ParseHeaders.py ${method} -s ${reads} ${args}
+			"""	
+	}else{
+		out="_reheader.fast*"
+		"""
+		ParseHeaders.py ${method} -s ${reads} ${args}
+		"""		
+	}
+}
+
+
+}
+
+
 process vdjbase_input {
 
 publishDir params.outdir, mode: 'copy', saveAs: {filename -> if (filename =~ /${chain}$/) "reads/$filename"}
 input:
- set val(name),file(reads) from g_16_reads0_g_14
+ set val(name),file(reads) from g_23_reads0_g_14
 
 output:
  file "${chain}"  into g_14_germlineDb00
